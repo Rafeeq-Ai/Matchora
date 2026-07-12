@@ -1,0 +1,62 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@vF
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Create dummy google-services.json
+      run: |
+        cat << 'JSON' > app/google-services.json
+        {
+          "project_info": {"project_number":"0","project_id":"m","storage_bucket":"m.appspot.com"},
+          "client":[{"client_info":{"mobilesdk_app_id":"1:0:android:0","android_client_info":{"package_name":"com.matchora.app"}},
+          "oauth_client":[{"client_id":"0","client_type":3}],"api_key":[{"current_key":"AIZa0"}],
+          "services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],
+          "configuration_version":"1"
+        }
+        JSON
+
+    - name: Create release keystore
+      run: |
+        keytool -genkey -v -keystore app/release.keystore -alias matchora -keyalg RSA -keysize 2048 -validity 10000 -storepass matchora -keypass matchora -dname "CN=M"
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build Release APK
+      run: ./gradlew assembleRelease
+
+    - name: Build Release Bundle (AAB)
+      run: ./gradlew bundleRelease
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release-apk
+        path: app/build/outputs/apk/release/app-release.apk
+
+    - name: Upload Release Bundle (AAB)
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release-aab
+        path: app/build/outputs/bundle/release/app-release-aab
